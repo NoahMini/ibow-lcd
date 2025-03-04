@@ -71,6 +71,7 @@ int main(int argc, char** argv) {
     cv::Mat dscs;
     detector->compute(img, kps, dscs);
 
+    //                                                                              THIS IS THE PART WE PUT INTO BTC
     ibow_lcd::LCDetectorResult result;
     lcdet.process(i, kps, dscs, &result);
 
