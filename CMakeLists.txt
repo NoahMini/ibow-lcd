@@ -37,7 +37,7 @@ endif()
 message(STATUS "Compiler flags: ${CMAKE_CXX_FLAGS}")
 
 # Catkin dependencies
-find_package(catkin REQUIRED COMPONENTS roscpp obindex2)
+find_package(catkin REQUIRED COMPONENTS roscpp obindex2 btc_desc)
 
 # Other packages
 find_package(OpenCV REQUIRED) # OpenCV
@@ -52,7 +52,7 @@ endif()
 catkin_package(
     INCLUDE_DIRS include external
     LIBRARIES lcdetector
-    CATKIN_DEPENDS roscpp obindex2
+    CATKIN_DEPENDS roscpp obindex2 btc_desc
     DEPENDS OpenCV Boost
 )
 
