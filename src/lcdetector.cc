@@ -51,8 +51,11 @@ LCDetector::~LCDetector() {}
 void LCDetector::process(const unsigned image_id,
                          const std::vector<cv::KeyPoint>& kps,
                          const cv::Mat& descs,
-                         LCDetectorResult* result) {
+                         std::pair<int, double> &loop_result) {
+  
   result->query_id = image_id;
+
+  //FIGURE OUT LOOP_RESULT
 
   // Storing the keypoints and descriptors
   prev_kps_.push_back(kps);
