@@ -49,12 +49,10 @@ LCDetector::LCDetector(const LCDetectorParams& params) :
 LCDetector::~LCDetector() {}
 
 void LCDetector::process(const unsigned image_id,
-                         const std::vector<cv::KeyPoint>& kps,
+                         const std::vector<cv::Point3f>& kps,
                          const cv::Mat& descs,
                          std::pair<int, double> &loop_result) {
   
-  result->query_id = image_id;
-
   //FIGURE OUT LOOP_RESULT
 
   // Storing the keypoints and descriptors
@@ -147,8 +145,8 @@ void LCDetector::process(const unsigned image_id,
   } else {
     // We obtain the image matchings, since we need them for compute F
     std::vector<cv::DMatch> tmatches;
-    std::vector<cv::Point2f> tquery;
-    std::vector<cv::Point2f> ttrain;
+    std::vector<cv::Point3f> tquery;
+    std::vector<cv::Point3f> ttrain;
     ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
     convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
     unsigned inliers = checkEpipolarGeometry(tquery, ttrain);
@@ -266,8 +264,8 @@ void LCDetector::debug(const unsigned image_id,
 
   // We obtain the image matchings, since we need them for compute F
   std::vector<cv::DMatch> tmatches;
-  std::vector<cv::Point2f> tquery;
-  std::vector<cv::Point2f> ttrain;
+  std::vector<cv::Point3f> tquery;
+  std::vector<cv::Point3f> ttrain;
   ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
   convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
   unsigned inliers = checkEpipolarGeometry(tquery, ttrain);
@@ -287,7 +285,7 @@ void LCDetector::debug(const unsigned image_id,
 }
 
 void LCDetector::addImage(const unsigned image_id,
-                          const std::vector<cv::KeyPoint>& kps,
+                          const std::vector<cv::Point3f>& kps,
                           const cv::Mat& descs) {
   if (index_->numImages() == 0) {
     // This is the first image that is inserted into the index
@@ -410,17 +408,17 @@ void LCDetector::getPriorIslands(
 }
 
 unsigned LCDetector::checkEpipolarGeometry(
-                                      const std::vector<cv::Point2f>& query,
-                                      const std::vector<cv::Point2f>& train) {
+                                      const std::vector<cv::Point3f>& query,
+                                      const std::vector<cv::Point3f>& train) {
   std::vector<uchar> inliers(query.size(), 0);
   if (query.size() > 7) {
     cv::Mat F =
-      cv::findFundamentalMat(
+      cv::estimateAffine3D(
         cv::Mat(query), cv::Mat(train),      // Matching points
-        cv::FM_RANSAC,                        // RANSAC method
+        _,                                  // output transformation matrix between the 3d point sets
+        inliers,                            // Output vector indicating which points are inliers (1-inlier, 0-outlier). 
         ep_dist_,                                 // Distance to epipolar line
-        conf_prob_,                              // Confidence probability
-        inliers);                            // Match status (inlier or outlier)
+        conf_prob_);                              // Confidence probability
   }
 
   // Extract the surviving (inliers) matches
@@ -452,23 +450,25 @@ void LCDetector::ratioMatchingBF(const cv::Mat& query,
   }
 }
 
-void LCDetector::convertPoints(const std::vector<cv::KeyPoint>& query_kps,
-                               const std::vector<cv::KeyPoint>& train_kps,
+void LCDetector::convertPoints(const std::vector<cv::Point3f>& query_kps, // kps
+                               const std::vector<cv::Point3f>& train_kps, // prev_kps[best_img]
                                const std::vector<cv::DMatch>& matches,
-                               std::vector<cv::Point2f>* query,
-                               std::vector<cv::Point2f>* train) {
+                               std::vector<cv::Point3f>* query,
+                               std::vector<cv::Point3f>* train) {
   query->clear();
   train->clear();
   for (auto it = matches.begin(); it != matches.end(); it++) {
     // Get the position of query keypoints
-    float x = query_kps[it->queryIdx].pt.x;
-    float y = query_kps[it->queryIdx].pt.y;
-    query->push_back(cv::Point2f(x, y));
+    float x = query_kps[it->queryIdx].x;
+    float y = query_kps[it->queryIdx].y;
+    float z = query_kps[it->queryIdx].z;
+    query->push_back(cv::Point3f(x, y, z));
 
     // Get the position of train keypoints
-    x = train_kps[it->trainIdx].pt.x;
-    y = train_kps[it->trainIdx].pt.y;
-    train->push_back(cv::Point2f(x, y));
+    x = train_kps[it->trainIdx].x;
+    y = train_kps[it->trainIdx].y;
+    z = train_kps[it->trainIdx].z;
+    train->push_back(cv::Point3f(x, y, z));
   }
 }
 

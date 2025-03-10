@@ -109,11 +109,11 @@ class LCDetector {
   virtual ~LCDetector();
 
   void process(const unsigned image_id,
-               const std::vector<cv::KeyPoint>& kps,
+               const std::vector<cv::Point3f>& kps,
                const cv::Mat& descs,
                LCDetectorResult* result);
   void debug(const unsigned image_id,
-             const std::vector<cv::KeyPoint>& kps,
+             const std::vector<cv::Point3f>& kps,
              const cv::Mat& descs,
              std::ofstream& out_file);
 
@@ -141,14 +141,14 @@ class LCDetector {
 
   // Queues to delay the publication of hypothesis
   std::queue<unsigned> queue_ids_;
-  std::queue<std::vector<cv::KeyPoint> > queue_kps_;
+  std::queue<std::vector<cv::Point3f> > queue_kps_;
   std::queue<cv::Mat> queue_descs_;
 
-  std::vector<std::vector<cv::KeyPoint> > prev_kps_;
+  std::vector<std::vector<cv::Point3f> > prev_kps_;
   std::vector<cv::Mat> prev_descs_;
 
   void addImage(const unsigned image_id,
-                const std::vector<cv::KeyPoint>& kps,
+                const std::vector<cv::Point3f>& kps,
                 const cv::Mat& descs);
   void filterMatches(
       const std::vector<std::vector<cv::DMatch> >& matches_feats,
@@ -164,16 +164,16 @@ class LCDetector {
       const std::vector<Island>& islands,
       std::vector<Island>* p_islands);
   unsigned checkEpipolarGeometry(
-      const std::vector<cv::Point2f>& query,
-      const std::vector<cv::Point2f>& train);
+      const std::vector<cv::Point3f>& query,
+      const std::vector<cv::Point3f>& train);
   void ratioMatchingBF(const cv::Mat& query,
                      const cv::Mat& train,
                      std::vector<cv::DMatch>* matches);
-  void convertPoints(const std::vector<cv::KeyPoint>& query_kps,
-                     const std::vector<cv::KeyPoint>& train_kps,
+  void convertPoints(const std::vector<cv::Point3f>& query_kps,
+                     const std::vector<cv::Point3f>& train_kps,
                      const std::vector<cv::DMatch>& matches,
-                     std::vector<cv::Point2f>* query,
-                     std::vector<cv::Point2f>* train);
+                     std::vector<cv::Point3f>* query,
+                     std::vector<cv::Point3f>* train);
 };
 
 }  // namespace ibow_lcd
