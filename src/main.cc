@@ -73,7 +73,16 @@ int main(int argc, char** argv) {
 
     //                                                                              THIS IS THE PART WE PUT INTO BTC
     ibow_lcd::LCDetectorResult result;
-    lcdet.process(i, kps, dscs, &result);
+    std::pair<int, double> search_result(-1, 0);
+    std::vector<cv::Point3f> kps3f;
+    cv::Point3f pointt;
+    for (int ind = 0; ind < kps.size(); ++ind){
+      pointt.x=kps[ind].pt.x;
+      pointt.y=kps[ind].pt.y;
+      pointt.z=0;
+      kps3f.push_back(pointt);
+    }
+    lcdet.process(i, kps3f, dscs, search_result);
 
     switch (result.status) {
       case ibow_lcd::LC_DETECTED:

@@ -111,7 +111,7 @@ class LCDetector {
   void process(const unsigned image_id,
                const std::vector<cv::Point3f>& kps,
                const cv::Mat& descs,
-               LCDetectorResult* result);
+               std::pair<int, double>& result);
   void debug(const unsigned image_id,
              const std::vector<cv::Point3f>& kps,
              const cv::Mat& descs,
@@ -131,7 +131,7 @@ class LCDetector {
   unsigned nframes_after_lc_;
 
   // Last loop closure detected
-  LCDetectorResult last_lc_result_;
+  // LCDetectorResult last_lc_result_;
   Island last_lc_island_;
   int min_consecutive_loops_;
   int consecutive_loops_;

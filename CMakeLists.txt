@@ -86,12 +86,12 @@ target_link_libraries(demo
                       ${OpenCV_LIBRARIES}
                       ${Boost_LIBRARIES})
 
-# Evaluation
-add_executable(evaluator
-               evaluation/lcevaluator.cc
-               evaluation/main.cc)
-target_link_libraries(evaluator
-                      lcdetector
-                      ${catkin_LIBRARIES}
-                      ${OpenCV_LIBRARIES}
-                      ${Boost_LIBRARIES})
+# # Evaluation
+# add_executable(evaluator
+#                evaluation/lcevaluator.cc
+#                evaluation/main.cc)
+# target_link_libraries(evaluator
+#                       lcdetector
+#                       ${catkin_LIBRARIES}
+#                       ${OpenCV_LIBRARIES}
+#                       ${Boost_LIBRARIES})

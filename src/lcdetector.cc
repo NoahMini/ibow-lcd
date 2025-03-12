@@ -41,7 +41,7 @@ LCDetector::LCDetector(const LCDetectorParams& params) :
   island_offset_ = island_size_ / 2;
   min_inliers_ = params.min_inliers;
   nframes_after_lc_ = params.nframes_after_lc;
-  last_lc_result_.status = LC_NOT_DETECTED;
+  // last_lc_result_.status = LC_NOT_DETECTED;
   min_consecutive_loops_ = params.min_consecutive_loops;
   consecutive_loops_ = 0;
 }
@@ -64,10 +64,10 @@ void LCDetector::process(const unsigned image_id,
 
   // Assessing if, at least, p images have arrived
   if (queue_ids_.size() < p_) {
-    result->status = LC_NOT_ENOUGH_IMAGES;
-    result->train_id = 0;
-    result->inliers = 0;
-    last_lc_result_.status = LC_NOT_ENOUGH_IMAGES;
+    // result->status = LC_NOT_ENOUGH_IMAGES;
+    loop_result.first = -1;
+    loop_result.second = 0;
+    // last_lc_result_.status = LC_NOT_ENOUGH_IMAGES;
     return;
   }
 
@@ -102,10 +102,10 @@ void LCDetector::process(const unsigned image_id,
 
   if (!islands.size()) {
     // No resulting islands
-    result->status = LC_NOT_ENOUGH_ISLANDS;
-    result->train_id = 0;
-    result->inliers = 0;
-    last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
+    // result->status = LC_NOT_ENOUGH_ISLANDS;
+    loop_result.first = -1;
+    loop_result.second = 0;
+    // last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
     return;
   }
 
@@ -136,11 +136,11 @@ void LCDetector::process(const unsigned image_id,
   // Assessing the loop
   if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
     // LOOP can be considered as detected
-    result->status = LC_DETECTED;
-    result->train_id = best_img;
-    result->inliers = 0;
+    // result->status = LC_DETECTED;
+    loop_result.first = best_img;
+    loop_result.second = 0;
     // Store the last result
-    last_lc_result_ = *result;
+    // last_lc_result_ = *result;
     consecutive_loops_++;
   } else {
     // We obtain the image matchings, since we need them for compute F
@@ -153,17 +153,17 @@ void LCDetector::process(const unsigned image_id,
 
     if (inliers > min_inliers_) {
       // LOOP detected
-      result->status = LC_DETECTED;
-      result->train_id = best_img;
-      result->inliers = inliers;
+      // result->status = LC_DETECTED;
+      loop_result.first = best_img;
+      loop_result.second = inliers;
       // Store the last result
-      last_lc_result_ = *result;
+      // last_lc_result_ = *result;
       consecutive_loops_++;
     } else {
-      result->status = LC_NOT_ENOUGH_INLIERS;
-      result->train_id = best_img;
-      result->inliers = inliers;
-      last_lc_result_.status = LC_NOT_ENOUGH_INLIERS;
+      // result->status = LC_NOT_ENOUGH_INLIERS;
+      loop_result.first = best_img;
+      loop_result.second = inliers;
+      // last_lc_result_.status = LC_NOT_ENOUGH_INLIERS;
       consecutive_loops_ = 0;
     }
   }
@@ -174,7 +174,7 @@ void LCDetector::process(const unsigned image_id,
 }
 
 void LCDetector::debug(const unsigned image_id,
-             const std::vector<cv::KeyPoint>& kps,
+             const std::vector<cv::Point3f>& kps,
              const cv::Mat& descs,
              std::ofstream& out_file) {
   auto start = std::chrono::steady_clock::now();
@@ -411,11 +411,12 @@ unsigned LCDetector::checkEpipolarGeometry(
                                       const std::vector<cv::Point3f>& query,
                                       const std::vector<cv::Point3f>& train) {
   std::vector<uchar> inliers(query.size(), 0);
+  cv::Mat aff(3,4,CV_64F);
   if (query.size() > 7) {
-    cv::Mat F =
+    int ret =
       cv::estimateAffine3D(
-        cv::Mat(query), cv::Mat(train),      // Matching points
-        _,                                  // output transformation matrix between the 3d point sets
+        query, train,      // Matching points
+        aff,                                  // output transformation matrix between the 3d point sets
         inliers,                            // Output vector indicating which points are inliers (1-inlier, 0-outlier). 
         ep_dist_,                                 // Distance to epipolar line
         conf_prob_);                              // Confidence probability
