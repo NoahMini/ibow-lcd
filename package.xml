@@ -13,9 +13,11 @@
 
   <build_depend>roscpp</build_depend>
   <build_depend>obindex2</build_depend>
+  <build_depend>libpcl-all-dev</build_depend>
 
   <run_depend>roscpp</run_depend>
   <run_depend>obindex2</run_depend>
+  <run_depend>libpcl-all</run_depend>
 
   <export>
     <cpp lflags="-L${prefix}/lib -Wl,-rpath,${prefix}/lib -llcdetector" cflags="-I${prefix}/include/"/>

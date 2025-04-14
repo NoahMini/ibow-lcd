@@ -18,6 +18,7 @@
 */
 
 #include "ibow-lcd/lcdetector.h"
+#include "ibow-lcd/alignment.h"
 
 namespace ibow_lcd {
 
@@ -61,6 +62,7 @@ void LCDetector::process(const unsigned image_id,
 
   // Adding the current image to the queue to be added in the future
   queue_ids_.push(image_id);
+  //std::cout << "Queue ids size: " << queue_ids_.size() << std::endl;
 
   // Assessing if, at least, p images have arrived
   if (queue_ids_.size() < p_) {
@@ -68,37 +70,68 @@ void LCDetector::process(const unsigned image_id,
     loop_result.first = -1;
     loop_result.second = 0;
     // last_lc_result_.status = LC_NOT_ENOUGH_IMAGES;
+    std::cout << "No loop: Not enough images" << std::endl;
     return;
   }
 
   // Adding new hypothesis
   unsigned newimg_id = queue_ids_.front();
   queue_ids_.pop();
-
+  auto t_load_start = std::chrono::high_resolution_clock::now();
+  
   addImage(newimg_id, prev_kps_[newimg_id], prev_descs_[newimg_id]);
+
+  auto t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] AddImage: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Searching similar images in the index
   // Matching the descriptors agains the current visual words
   std::vector<std::vector<cv::DMatch> > matches_feats;
 
   // Searching the query descriptors against the features
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
   index_->searchDescriptors(descs, &matches_feats, 2, 64);
 
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] SearchDescriptors: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   // Filtering matches according to the ratio test
   std::vector<cv::DMatch> matches;
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
   filterMatches(matches_feats, &matches);
+
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] FilterMatches: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   std::vector<obindex2::ImageMatch> image_matches;
 
   // We look for similar images according to the filtered matches found
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
   index_->searchImages(descs, matches, &image_matches, true);
+
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] SearchImages: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Filtering the resulting image matchings
   std::vector<obindex2::ImageMatch> image_matches_filt;
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
   filterCandidates(image_matches, &image_matches_filt);
 
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] FilterCandidates: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+
   std::vector<Island> islands;
-  buildIslands(image_matches_filt, &islands);
+
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
+  buildIslands(image_matches_filt, &islands);                                       //CHECK MORE THAN JUST THE FIRST ISLAND
+
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] BuildIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  std::cout << "Number of islands: " << islands.size() << std::endl;
 
   if (!islands.size()) {
     // No resulting islands
@@ -106,18 +139,25 @@ void LCDetector::process(const unsigned image_id,
     loop_result.first = -1;
     loop_result.second = 0;
     // last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
+    std::cout << "No loop: Not enough islands" << std::endl;
     return;
   }
 
-  // std::cout << "Resulting Islands:" << std::endl;
-  // for (unsigned i = 0; i < islands.size(); i++) {
-  //   std::cout << islands[i].toString();
-  // }
+  std::cout << "Resulting Islands:" << std::endl;
+  for (unsigned i = 0; i < 5; i++) {
+    std::cout << islands[i].toString();
+  }
 
   // Selecting the corresponding island to be processed
   Island island = islands[0];
   std::vector<Island> p_islands;
+  t_load_start = std::chrono::high_resolution_clock::now();
+  
   getPriorIslands(last_lc_island_, islands, &p_islands);
+
+  t_load_end = std::chrono::high_resolution_clock::now();
+  std::cout << "[Time] GetPriorIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  
   if (p_islands.size()) {
     island = p_islands[0];
   }
@@ -141,16 +181,40 @@ void LCDetector::process(const unsigned image_id,
     loop_result.second = 0;
     // Store the last result
     // last_lc_result_ = *result;
+    std::cout << " Loop detected: Overlap + Enough consecutive loops" << std::endl;
     consecutive_loops_++;
   } else {
     // We obtain the image matchings, since we need them for compute F
+    t_load_start = std::chrono::high_resolution_clock::now();
+    
     std::vector<cv::DMatch> tmatches;
     std::vector<cv::Point3f> tquery;
     std::vector<cv::Point3f> ttrain;
     ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
     convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
-    unsigned inliers = checkEpipolarGeometry(tquery, ttrain);
 
+    pcl::PointCloud<pcl::PointXYZ> query_cloud;
+    query_cloud.points.resize (tquery.size());
+    for (size_t i=0; i<tquery.size(); i++) {
+          query_cloud.points[i].x = tquery[i].x;
+          query_cloud.points[i].y = tquery[i].y;
+          query_cloud.points[i].z = tquery[i].z;
+    }
+
+    pcl::PointCloud<pcl::PointXYZ> train_cloud;
+    train_cloud.points.resize (ttrain.size());
+    for (size_t i=0; i<ttrain.size(); i++) {
+          train_cloud.points[i].x = ttrain[i].x;
+          train_cloud.points[i].y = ttrain[i].y;
+          train_cloud.points[i].z = ttrain[i].z;
+    }
+
+    ibow_lcd::AlignmentResult result = computeCloudTransform(query_cloud.makeShared(), train_cloud.makeShared());
+    unsigned inliers = result.inliers;
+    
+    t_load_end = std::chrono::high_resolution_clock::now();
+    std::cout << "[Time] CheckForInliers: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+    
     if (inliers > min_inliers_) {
       // LOOP detected
       // result->status = LC_DETECTED;
@@ -158,12 +222,14 @@ void LCDetector::process(const unsigned image_id,
       loop_result.second = inliers;
       // Store the last result
       // last_lc_result_ = *result;
+      std::cout << " Loop detected: Enough inliers" << std::endl;
       consecutive_loops_++;
     } else {
       // result->status = LC_NOT_ENOUGH_INLIERS;
-      loop_result.first = best_img;
+      loop_result.first = -1;
       loop_result.second = inliers;
       // last_lc_result_.status = LC_NOT_ENOUGH_INLIERS;
+      std::cout << " No loop: Not enough inliers" << std::endl;
       consecutive_loops_ = 0;
     }
   }
@@ -407,7 +473,7 @@ void LCDetector::getPriorIslands(
   }
 }
 
-unsigned LCDetector::checkEpipolarGeometry(
+unsigned LCDetector::checkEpipolarGeometry(                                               //Apply icp with pointclouds
                                       const std::vector<cv::Point3f>& query,
                                       const std::vector<cv::Point3f>& train) {
   std::vector<uchar> inliers(query.size(), 0);
