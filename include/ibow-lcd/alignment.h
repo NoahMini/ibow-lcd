@@ -22,27 +22,41 @@ namespace ibow_lcd {
         icp.setInputTarget(target);
         icp.setMaxCorrespondenceDistance(max_correspondence_distance);
         icp.setMaximumIterations(100);
+        std::cout << "Fine after setmaxiterations" << std::endl;
         // Ejecutar alineación
         pcl::PointCloud<pcl::PointXYZ> final_cloud;
         icp.align(final_cloud);
-        // Obtener resultados
-        result.transformation = icp.getFinalTransformation();
-        result.fitness_score = icp.getFitnessScore();
-        // Calcular inliers usando KD-Tree
-        pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
-        kdtree.setInputCloud(target);
-        int inliers_count = 0;
-        for (const auto& point : final_cloud) {
-            std::vector<int> indices(1);
-            std::vector<float> distances(1);
-            if (kdtree.nearestKSearch(point, 1, indices, distances) > 0) {
-                if (distances[0] <= max_correspondence_distance) {
-                    inliers_count++;
+
+        std::cout << "Fine after align" << std::endl;
+
+        if (icp.hasConverged ())
+        {
+            std::cout << "got into converged" << std::endl;
+            // Obtener resultados
+            result.transformation = icp.getFinalTransformation();
+            result.fitness_score = icp.getFitnessScore();
+            // Calcular inliers usando KD-Tree
+            pcl::KdTreeFLANN<pcl::PointXYZ> kdtree;
+            kdtree.setInputCloud(target);
+            int inliers_count = 0;
+            for (const auto& point : final_cloud) {
+                std::vector<int> indices(1);
+                std::vector<float> distances(1);
+                if (kdtree.nearestKSearch(point, 1, indices, distances) > 0) {
+                    if (distances[0] <= max_correspondence_distance) {
+                        inliers_count++;
+                    }
                 }
             }
-        }
 
-        result.inliers = inliers_count;
+            result.inliers = inliers_count;
+        }
+        else
+        {
+            std::cout << "didnt converge" << std::endl;
+            result.inliers = 0;
+        }
+        
         return result;
     }
 }

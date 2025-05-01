@@ -193,24 +193,28 @@ void LCDetector::process(const unsigned image_id,
     ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
     convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
 
-    pcl::PointCloud<pcl::PointXYZ> query_cloud;
-    query_cloud.points.resize (tquery.size());
-    for (size_t i=0; i<tquery.size(); i++) {
-          query_cloud.points[i].x = tquery[i].x;
-          query_cloud.points[i].y = tquery[i].y;
-          query_cloud.points[i].z = tquery[i].z;
-    }
+    unsigned inliers = 0;
+    if (!tquery.empty() && !ttrain.empty()){
+      pcl::PointCloud<pcl::PointXYZ> query_cloud;
+      query_cloud.points.resize (tquery.size());
+      for (size_t i=0; i<tquery.size(); i++) {
+            query_cloud.points[i].x = tquery[i].x;
+            query_cloud.points[i].y = tquery[i].y;
+            query_cloud.points[i].z = tquery[i].z;
+      }
 
-    pcl::PointCloud<pcl::PointXYZ> train_cloud;
-    train_cloud.points.resize (ttrain.size());
-    for (size_t i=0; i<ttrain.size(); i++) {
-          train_cloud.points[i].x = ttrain[i].x;
-          train_cloud.points[i].y = ttrain[i].y;
-          train_cloud.points[i].z = ttrain[i].z;
-    }
+      pcl::PointCloud<pcl::PointXYZ> train_cloud;
+      train_cloud.points.resize (ttrain.size());
+      for (size_t i=0; i<ttrain.size(); i++) {
+            train_cloud.points[i].x = ttrain[i].x;
+            train_cloud.points[i].y = ttrain[i].y;
+            train_cloud.points[i].z = ttrain[i].z;
+      }
 
-    ibow_lcd::AlignmentResult result = computeCloudTransform(query_cloud.makeShared(), train_cloud.makeShared());
-    unsigned inliers = result.inliers;
+      ibow_lcd::AlignmentResult result = computeCloudTransform(query_cloud.makeShared(), train_cloud.makeShared());
+      std::cout << "got out" << std::endl;
+      inliers = result.inliers;
+    }
     
     t_load_end = std::chrono::high_resolution_clock::now();
     std::cout << "[Time] CheckForInliers: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
