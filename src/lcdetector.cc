@@ -19,6 +19,9 @@
 
 #include "ibow-lcd/lcdetector.h"
 #include "ibow-lcd/alignment.h"
+#include <pcl/io/pcd_io.h>
+
+#include <pcl/point_types.h>
 
 namespace ibow_lcd {
 
@@ -52,10 +55,11 @@ LCDetector::~LCDetector() {}
 void LCDetector::process(const unsigned image_id,
                          const std::vector<cv::Point3f>& kps,
                          const cv::Mat& descs,
+                         const std::string pcds_dir,
                          std::pair<int, double> &loop_result) {
   
   //FIGURE OUT LOOP_RESULT
-
+  std::cout << std::endl << "----- Image " << image_id << std::endl;
   // Storing the keypoints and descriptors
   prev_kps_.push_back(kps);
   prev_descs_.push_back(descs);
@@ -77,60 +81,60 @@ void LCDetector::process(const unsigned image_id,
   // Adding new hypothesis
   unsigned newimg_id = queue_ids_.front();
   queue_ids_.pop();
-  auto t_load_start = std::chrono::high_resolution_clock::now();
+  // auto t_load_start = std::chrono::high_resolution_clock::now();
   
   addImage(newimg_id, prev_kps_[newimg_id], prev_descs_[newimg_id]);
 
-  auto t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] AddImage: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // auto t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] AddImage: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Searching similar images in the index
   // Matching the descriptors agains the current visual words
   std::vector<std::vector<cv::DMatch> > matches_feats;
 
   // Searching the query descriptors against the features
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   index_->searchDescriptors(descs, &matches_feats, 2, 64);
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] SearchDescriptors: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] SearchDescriptors: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   // Filtering matches according to the ratio test
   std::vector<cv::DMatch> matches;
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   filterMatches(matches_feats, &matches);
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] FilterMatches: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] FilterMatches: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   std::vector<obindex2::ImageMatch> image_matches;
 
   // We look for similar images according to the filtered matches found
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   index_->searchImages(descs, matches, &image_matches, true);
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] SearchImages: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] SearchImages: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Filtering the resulting image matchings
   std::vector<obindex2::ImageMatch> image_matches_filt;
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   filterCandidates(image_matches, &image_matches_filt);
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] FilterCandidates: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] FilterCandidates: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   std::vector<Island> islands;
 
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   buildIslands(image_matches_filt, &islands);                                       //CHECK MORE THAN JUST THE FIRST ISLAND
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] BuildIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] BuildIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   std::cout << "Number of islands: " << islands.size() << std::endl;
 
   if (!islands.size()) {
@@ -144,34 +148,34 @@ void LCDetector::process(const unsigned image_id,
   }
 
   std::cout << "Resulting Islands:" << std::endl;
-  for (unsigned i = 0; i < 5; i++) {
+  for (unsigned i = 0; i < islands.size(); i++) {
     std::cout << islands[i].toString();
   }
 
   // Selecting the corresponding island to be processed
   Island island = islands[0];
   std::vector<Island> p_islands;
-  t_load_start = std::chrono::high_resolution_clock::now();
+  // t_load_start = std::chrono::high_resolution_clock::now();
   
   getPriorIslands(last_lc_island_, islands, &p_islands);
 
-  t_load_end = std::chrono::high_resolution_clock::now();
-  std::cout << "[Time] GetPriorIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+  // t_load_end = std::chrono::high_resolution_clock::now();
+  // std::cout << "[Time] GetPriorIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   
   if (p_islands.size()) {
     island = p_islands[0];
+    std::cout << "Priority island: " << p_islands[0].toString() << std::endl;
   }
 
   bool overlap = island.overlaps(last_lc_island_);
   last_lc_island_ = island;
 
-  // if () {
-  //   consecutive_loops_++;
-  // } else {
-  //   consecutive_loops_ = 1;
-  // }
-
   unsigned best_img = island.img_id;
+  std::cout << "best image: " << best_img << std::endl;
+  std::cout << "Overlap: " << overlap << std::endl;
+  
+  // bool overlap = true;
+  // unsigned best_img = 10;
 
   // Assessing the loop
   if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
@@ -185,62 +189,73 @@ void LCDetector::process(const unsigned image_id,
     consecutive_loops_++;
   } else {
     // We obtain the image matchings, since we need them for compute F
-    t_load_start = std::chrono::high_resolution_clock::now();
+    // t_load_start = std::chrono::high_resolution_clock::now();
     
-    std::vector<cv::DMatch> tmatches;
-    std::vector<cv::Point3f> tquery;
-    std::vector<cv::Point3f> ttrain;
-    ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
-    convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr qtransform_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+
+    std::stringstream qss;
+    qss << pcds_dir << "/" << std::setfill('0') << std::setw(6) << image_id
+        << ".bin";
+    
+    std::cout << qss.str() << std::endl;
+    std::vector<float> lidar_data = read_lidar_data(qss.str());
+
+    for (std::size_t i = 0; i < lidar_data.size(); i += 4) {
+      pcl::PointXYZ point;
+      point.x = lidar_data[i];
+      point.y = lidar_data[i + 1];
+      point.z = lidar_data[i + 2];
+      qtransform_cloud->points.push_back(point);
+    }
+    std::cout << "Read image_id fine" << std::endl;
+
+    pcl::PointCloud<pcl::PointXYZ>::Ptr ttransform_cloud(new pcl::PointCloud<pcl::PointXYZ>());
+
+    std::stringstream tss;
+    tss << pcds_dir << "/" << std::setfill('0') << std::setw(6) << best_img
+        << ".bin";
+
+    std::cout << tss.str() << std::endl;
+        lidar_data = read_lidar_data(tss.str());
+
+    for (std::size_t i = 0; i < lidar_data.size(); i += 4) {
+      pcl::PointXYZ point;
+      point.x = lidar_data[i];
+      point.y = lidar_data[i + 1];
+      point.z = lidar_data[i + 2];
+      ttransform_cloud->points.push_back(point);
+    }
+    std::cout << "Read best_img fine" << std::endl;
 
     unsigned inliers = 0;
-    if (!tquery.empty() && !ttrain.empty()){
-      pcl::PointCloud<pcl::PointXYZ> query_cloud;
-      query_cloud.points.resize (tquery.size());
-      for (size_t i=0; i<tquery.size(); i++) {
-            query_cloud.points[i].x = tquery[i].x;
-            query_cloud.points[i].y = tquery[i].y;
-            query_cloud.points[i].z = tquery[i].z;
-      }
+    if (!qtransform_cloud->empty() && !ttransform_cloud->empty()){
+      std::cout << "Query cloud size: " << qtransform_cloud->points.size() << std::endl;
 
-      pcl::PointCloud<pcl::PointXYZ> train_cloud;
-      train_cloud.points.resize (ttrain.size());
-      for (size_t i=0; i<ttrain.size(); i++) {
-            train_cloud.points[i].x = ttrain[i].x;
-            train_cloud.points[i].y = ttrain[i].y;
-            train_cloud.points[i].z = ttrain[i].z;
-      }
+      std::cout << "Train cloud size: " << ttransform_cloud->points.size() << std::endl;
 
-      ibow_lcd::AlignmentResult result = computeCloudTransform(query_cloud.makeShared(), train_cloud.makeShared());
+      // computeCloudTransform(qtransform_cloud, ttransform_cloud, inliers);
+      // ibow_lcd::AlignmentResult cloud_result = computeCloudTransform(qtransform_cloud, ttransform_cloud);
+      // computeCloudTransform(qtransform_cloud, ttransform_cloud);
       std::cout << "got out" << std::endl;
-      inliers = result.inliers;
+      // inliers = 0;
     }
     
-    t_load_end = std::chrono::high_resolution_clock::now();
-    std::cout << "[Time] CheckForInliers: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
+    // t_load_end = std::chrono::high_resolution_clock::now();
+    // std::cout << "[Time] CheckForInliers: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
     
     if (inliers > min_inliers_) {
       // LOOP detected
-      // result->status = LC_DETECTED;
       loop_result.first = best_img;
       loop_result.second = inliers;
-      // Store the last result
-      // last_lc_result_ = *result;
       std::cout << " Loop detected: Enough inliers" << std::endl;
       consecutive_loops_++;
     } else {
-      // result->status = LC_NOT_ENOUGH_INLIERS;
       loop_result.first = -1;
       loop_result.second = inliers;
-      // last_lc_result_.status = LC_NOT_ENOUGH_INLIERS;
       std::cout << " No loop: Not enough inliers" << std::endl;
       consecutive_loops_ = 0;
     }
   }
-  // else {
-  //   result->status = LC_NOT_DETECTED;
-  //   last_lc_result_.status = LC_NOT_DETECTED;
-  // }
 }
 
 void LCDetector::debug(const unsigned image_id,
@@ -541,6 +556,26 @@ void LCDetector::convertPoints(const std::vector<cv::Point3f>& query_kps, // kps
     z = train_kps[it->trainIdx].z;
     train->push_back(cv::Point3f(x, y, z));
   }
+}
+
+std::vector<float> LCDetector::read_lidar_data(const std::string lidar_data_path) {
+  std::ifstream lidar_data_file;
+  lidar_data_file.open(lidar_data_path,
+                       std::ifstream::in | std::ifstream::binary);
+  if (!lidar_data_file) {
+    std::cout << "Read End..." << std::endl;
+    std::vector<float> nan_data;
+    return nan_data;
+    // exit(-1);
+  }
+  lidar_data_file.seekg(0, std::ios::end);
+  const size_t num_elements = lidar_data_file.tellg() / sizeof(float);
+  lidar_data_file.seekg(0, std::ios::beg);
+
+  std::vector<float> lidar_data_buffer(num_elements);
+  lidar_data_file.read(reinterpret_cast<char *>(&lidar_data_buffer[0]),
+                       num_elements * sizeof(float));
+  return lidar_data_buffer;
 }
 
 }  // namespace ibow_lcd

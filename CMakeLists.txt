@@ -91,13 +91,13 @@ target_link_libraries(lcdetector
                       ${Boost_LIBRARIES})
 
 # Main / Demo
-add_executable(demo
-               src/main.cc)
-target_link_libraries(demo
-                      lcdetector
-                      ${catkin_LIBRARIES}
-                      ${OpenCV_LIBRARIES}
-                      ${Boost_LIBRARIES})
+# add_executable(demo
+#                src/main.cc)
+# target_link_libraries(demo
+#                       lcdetector
+#                       ${catkin_LIBRARIES}
+#                       ${OpenCV_LIBRARIES}
+#                       ${Boost_LIBRARIES})
 
 # # Evaluation
 # add_executable(evaluator

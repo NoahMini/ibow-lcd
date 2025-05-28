@@ -82,7 +82,7 @@ int main(int argc, char** argv) {
       pointt.z=0;
       kps3f.push_back(pointt);
     }
-    lcdet.process(i, kps3f, dscs, search_result);
+    lcdet.process(i, kps3f, dscs, "ignoreit", search_result);
 
     switch (result.status) {
       case ibow_lcd::LC_DETECTED:

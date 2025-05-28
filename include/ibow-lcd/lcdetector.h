@@ -111,6 +111,7 @@ class LCDetector {
   void process(const unsigned image_id,
                const std::vector<cv::Point3f>& kps,
                const cv::Mat& descs,
+               const std::string pcds_dir,
                std::pair<int, double>& result);
   void debug(const unsigned image_id,
              const std::vector<cv::Point3f>& kps,
@@ -174,6 +175,7 @@ class LCDetector {
                      const std::vector<cv::DMatch>& matches,
                      std::vector<cv::Point3f>* query,
                      std::vector<cv::Point3f>* train);
+  std::vector<float> read_lidar_data(const std::string lidar_data_path);
 };
 
 }  // namespace ibow_lcd
