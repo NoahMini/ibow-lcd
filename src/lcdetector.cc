@@ -173,6 +173,7 @@ void LCDetector::process(const unsigned image_id,
   unsigned best_img = island.img_id;
   std::cout << "best image: " << best_img << std::endl;
   std::cout << "Overlap: " << overlap << std::endl;
+  unsigned inliers = 0;
   
   // bool overlap = true;
   // unsigned best_img = 10;
@@ -188,73 +189,11 @@ void LCDetector::process(const unsigned image_id,
     std::cout << " Loop detected: Overlap + Enough consecutive loops" << std::endl;
     consecutive_loops_++;
   } else {
-    // We obtain the image matchings, since we need them for compute F
-    // t_load_start = std::chrono::high_resolution_clock::now();
+    // LOOP not detected 
+    loop_result.first = best_img;
+    loop_result.second = 1;
+    std::cout << " Have to check for inliers" << std::endl;
     
-    pcl::PointCloud<pcl::PointXYZ>::Ptr qtransform_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-
-    std::stringstream qss;
-    qss << pcds_dir << "/" << std::setfill('0') << std::setw(6) << image_id
-        << ".bin";
-    
-    std::cout << qss.str() << std::endl;
-    std::vector<float> lidar_data = read_lidar_data(qss.str());
-
-    for (std::size_t i = 0; i < lidar_data.size(); i += 4) {
-      pcl::PointXYZ point;
-      point.x = lidar_data[i];
-      point.y = lidar_data[i + 1];
-      point.z = lidar_data[i + 2];
-      qtransform_cloud->points.push_back(point);
-    }
-    std::cout << "Read image_id fine" << std::endl;
-
-    pcl::PointCloud<pcl::PointXYZ>::Ptr ttransform_cloud(new pcl::PointCloud<pcl::PointXYZ>());
-
-    std::stringstream tss;
-    tss << pcds_dir << "/" << std::setfill('0') << std::setw(6) << best_img
-        << ".bin";
-
-    std::cout << tss.str() << std::endl;
-        lidar_data = read_lidar_data(tss.str());
-
-    for (std::size_t i = 0; i < lidar_data.size(); i += 4) {
-      pcl::PointXYZ point;
-      point.x = lidar_data[i];
-      point.y = lidar_data[i + 1];
-      point.z = lidar_data[i + 2];
-      ttransform_cloud->points.push_back(point);
-    }
-    std::cout << "Read best_img fine" << std::endl;
-
-    unsigned inliers = 0;
-    if (!qtransform_cloud->empty() && !ttransform_cloud->empty()){
-      std::cout << "Query cloud size: " << qtransform_cloud->points.size() << std::endl;
-
-      std::cout << "Train cloud size: " << ttransform_cloud->points.size() << std::endl;
-
-      // computeCloudTransform(qtransform_cloud, ttransform_cloud, inliers);
-      // ibow_lcd::AlignmentResult cloud_result = computeCloudTransform(qtransform_cloud, ttransform_cloud);
-      // computeCloudTransform(qtransform_cloud, ttransform_cloud);
-      std::cout << "got out" << std::endl;
-      // inliers = 0;
-    }
-    
-    // t_load_end = std::chrono::high_resolution_clock::now();
-    // std::cout << "[Time] CheckForInliers: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
-    
-    if (inliers > min_inliers_) {
-      // LOOP detected
-      loop_result.first = best_img;
-      loop_result.second = inliers;
-      std::cout << " Loop detected: Enough inliers" << std::endl;
-      consecutive_loops_++;
-    } else {
-      loop_result.first = -1;
-      loop_result.second = inliers;
-      std::cout << " No loop: Not enough inliers" << std::endl;
-      consecutive_loops_ = 0;
-    }
   }
 }
 

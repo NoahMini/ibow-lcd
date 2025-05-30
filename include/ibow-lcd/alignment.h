@@ -10,10 +10,9 @@ namespace ibow_lcd {
         float fitness_score;
     };
     
-    void computeCloudTransform(
+    AlignmentResult computeCloudTransform(
         const pcl::PointCloud<pcl::PointXYZ>::Ptr& source,
         const pcl::PointCloud<pcl::PointXYZ>::Ptr& target,
-        int inliers_out,
         float max_correspondence_distance = 0.05f) 
     {
         AlignmentResult result;
@@ -57,11 +56,9 @@ namespace ibow_lcd {
             std::cout << "didnt converge" << std::endl;
             result.inliers = 0;
             std::cout << "still fine: result inliers equals " << result.inliers << std::endl;
-            inliers_out = result.inliers;
         }
         
         std::cout << "ready to return: inliers = " << result.inliers << std::endl;
-        inliers_out = result.inliers;
-        // return result;
+        return result;
     }
 }

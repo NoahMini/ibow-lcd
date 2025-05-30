@@ -108,6 +108,8 @@ class LCDetector {
   explicit LCDetector(const LCDetectorParams& params);
   virtual ~LCDetector();
 
+  int consecutive_loops_;
+
   void process(const unsigned image_id,
                const std::vector<cv::Point3f>& kps,
                const cv::Mat& descs,
@@ -135,7 +137,6 @@ class LCDetector {
   // LCDetectorResult last_lc_result_;
   Island last_lc_island_;
   int min_consecutive_loops_;
-  int consecutive_loops_;
 
   // Image Index
   std::shared_ptr<obindex2::ImageIndex> index_;
