@@ -21,7 +21,7 @@ namespace ibow_lcd {
         icp.setInputSource(source);
         icp.setInputTarget(target);
         icp.setMaxCorrespondenceDistance(max_correspondence_distance);
-        icp.setMaximumIterations(100);
+        icp.setMaximumIterations(200);
         std::cout << "Fine after setmaxiterations" << std::endl;
         // Ejecutar alineación
         pcl::PointCloud<pcl::PointXYZ> final_cloud;
