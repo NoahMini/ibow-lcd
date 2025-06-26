@@ -56,10 +56,14 @@ void LCDetector::process(const unsigned image_id,
                          const std::vector<cv::Point3f>& kps,
                          const cv::Mat& descs,
                          const std::string pcds_dir,
-                         std::pair<int, double> &loop_result) {
+                         std::pair<int, double> &loop_result,
+                         int prev_match,
+                         std::ofstream& out_file,
+                         std::ofstream& match_file) {
   
   //FIGURE OUT LOOP_RESULT
   std::cout << std::endl << "----- Image " << image_id << std::endl;
+  out_file << "\n----- Image " << image_id << "\n";
   // Storing the keypoints and descriptors
   prev_kps_.push_back(kps);
   prev_descs_.push_back(descs);
@@ -75,6 +79,7 @@ void LCDetector::process(const unsigned image_id,
     loop_result.second = 0;
     // last_lc_result_.status = LC_NOT_ENOUGH_IMAGES;
     std::cout << "No loop: Not enough images" << std::endl;
+    out_file << "No loop: Not enough images\n";
     return;
   }
 
@@ -97,6 +102,21 @@ void LCDetector::process(const unsigned image_id,
   
   index_->searchDescriptors(descs, &matches_feats, 2, 64);
 
+  if(matches_feats.size()){
+    match_file << "\n\n----- Image " << image_id << "\n";
+    match_file << "  Descriptor Matches:\n";
+    for(auto i = 0 ; i < matches_feats.size() ; i++){
+    match_file << "Query desc id: " << matches_feats[i][0].queryIdx << "\n";
+    for (auto j = 0 ; j < matches_feats[i].size() ; j++){
+      match_file << "    trainIdx: " << matches_feats[i][j].trainIdx << "\n";
+      match_file << "    imgIdx: " << matches_feats[i][j].imgIdx << "\n";
+      match_file << "    distance: " << matches_feats[i][j].distance << "\n";
+      match_file << "------------------------------------------\n";
+    }
+  }
+  }
+  
+
   // t_load_end = std::chrono::high_resolution_clock::now();
   // std::cout << "[Time] SearchDescriptors: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   // Filtering matches according to the ratio test
@@ -104,6 +124,8 @@ void LCDetector::process(const unsigned image_id,
   // t_load_start = std::chrono::high_resolution_clock::now();
   
   filterMatches(matches_feats, &matches);
+
+  out_file << "Filtered desc matches: " << matches.size() << "\n";
 
   // t_load_end = std::chrono::high_resolution_clock::now();
   // std::cout << "[Time] FilterMatches: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
@@ -124,6 +146,27 @@ void LCDetector::process(const unsigned image_id,
   
   filterCandidates(image_matches, &image_matches_filt);
 
+  if(prev_match > 0 && image_matches_filt.size()){
+    obindex2::ImageMatch prev_match_up;
+    //obindex2::ImageMatch prev_match_down;
+    prev_match_up.image_id = prev_match + 1;
+    //prev_match_down.image_id = prev_match - 1;
+    prev_match_up.score = image_matches_filt[0].score*0.8;
+    //prev_match_down.score = image_matches_filt[0].score*0.8;
+    image_matches_filt.insert(image_matches_filt.begin(), prev_match_up);
+    //image_matches_filt.insert(image_matches_filt.begin(), prev_match_down);
+    //consider adding both the +1 and -1
+  }
+
+  if(image_matches_filt.size()){
+    match_file << "\n  Descriptor Matches:\n";
+    for(auto i = 0 ; i < image_matches_filt.size() ; i++){
+      match_file << "    img id: " << image_matches_filt[i].image_id << "\n";
+      match_file << "    score: " << image_matches_filt[i].score << "\n";
+    }
+  }
+
+
   // t_load_end = std::chrono::high_resolution_clock::now();
   // std::cout << "[Time] FilterCandidates: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
@@ -136,6 +179,7 @@ void LCDetector::process(const unsigned image_id,
   // t_load_end = std::chrono::high_resolution_clock::now();
   // std::cout << "[Time] BuildIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   std::cout << "Number of islands: " << islands.size() << std::endl;
+  out_file << "Number of islands: " << islands.size() << "\n";
 
   if (!islands.size()) {
     // No resulting islands
@@ -144,12 +188,15 @@ void LCDetector::process(const unsigned image_id,
     loop_result.second = 0;
     // last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
     std::cout << "No loop: Not enough islands" << std::endl;
+    out_file << "No loop: Not enough islands" << "\n";
     return;
   }
 
   std::cout << "Resulting Islands:" << std::endl;
+  out_file << "Resulting Islands:" << "\n";
   for (unsigned i = 0; i < islands.size(); i++) {
     std::cout << islands[i].toString();
+    out_file << islands[i].toString();
   }
 
   // Selecting the corresponding island to be processed
@@ -158,6 +205,7 @@ void LCDetector::process(const unsigned image_id,
   // t_load_start = std::chrono::high_resolution_clock::now();
   
   getPriorIslands(last_lc_island_, islands, &p_islands);
+  
 
   // t_load_end = std::chrono::high_resolution_clock::now();
   // std::cout << "[Time] GetPriorIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
@@ -165,6 +213,7 @@ void LCDetector::process(const unsigned image_id,
   if (p_islands.size()) {
     island = p_islands[0];
     std::cout << "Priority island: " << p_islands[0].toString() << std::endl;
+    out_file << "Priority island: " << p_islands[0].toString() << "\n";
   }
 
   bool overlap = island.overlaps(last_lc_island_);
@@ -173,10 +222,9 @@ void LCDetector::process(const unsigned image_id,
   unsigned best_img = island.img_id;
   std::cout << "best image: " << best_img << std::endl;
   std::cout << "Overlap: " << overlap << std::endl;
-  unsigned inliers = 0;
-  
-  // bool overlap = true;
-  // unsigned best_img = 10;
+  out_file << "Prev Match: " << prev_match << "\n";
+  out_file << "best image: " << best_img << "\n";
+  out_file << "Overlap: " << overlap << "\n";
 
   // Assessing the loop
   if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
@@ -187,13 +235,14 @@ void LCDetector::process(const unsigned image_id,
     // Store the last result
     // last_lc_result_ = *result;
     std::cout << " Loop detected: Overlap + Enough consecutive loops" << std::endl;
+    out_file << " Loop detected: Overlap + Enough consecutive loops" << "\n";
     consecutive_loops_++;
   } else {
     // LOOP not detected 
     loop_result.first = best_img;
     loop_result.second = 1;
     std::cout << " Have to check for inliers" << std::endl;
-    
+    out_file << " Have to check for inliers" << "\n";
   }
 }
 

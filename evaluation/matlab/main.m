@@ -1,5 +1,5 @@
 % Script for obtaining the required results for IROS'18
-base_dir = '/home/emilio/Escritorio/ibow-lcd/';
+base_dir = '/home/noah/tfm/src/btc_descriptor/';
 gt_neigh = 40;
 compensate = false;
 
@@ -7,25 +7,13 @@ compensate = false;
 addpath('AcademicFigures/');
 
 % Obtaining CityCenter results
-curr_dir = strcat(base_dir, 'CityCentre/');
-[PR_CC, imgvssize_CC, imgvstime_CC] = process(curr_dir, gt_neigh, compensate);
-imgvstime_CC.time = smooth(imgvstime_CC.time);
-
-curr_dir = strcat(base_dir, 'NewCollege/');
-[PR_NC, imgvssize_NC, imgvstime_NC] = process(curr_dir, gt_neigh, compensate);
-imgvstime_NC.time = smooth(imgvstime_NC.time);
-
-curr_dir = strcat(base_dir, 'Lip6In/');
-[PR_L6I, imgvssize_L6I, imgvstime_L6I] = process(curr_dir, gt_neigh, compensate);
-imgvstime_L6I.time = smooth(imgvstime_L6I.time);
-
-curr_dir = strcat(base_dir, 'Lip6Out/');
-[PR_L6O, imgvssize_L6O, imgvstime_L6O] = process(curr_dir, gt_neigh, compensate);
-imgvstime_L6O.time = smooth(imgvstime_L6O.time);
-
 curr_dir = strcat(base_dir, 'KITTI00/');
 [PR_K0, imgvssize_K0, imgvstime_K0] = process(curr_dir, gt_neigh, compensate);
 imgvstime_K0.time = smooth(imgvstime_K0.time);
+
+curr_dir = strcat(base_dir, 'KITTI02/');
+[PR_K2, imgvssize_K2, imgvstime_K2] = process(curr_dir, gt_neigh, compensate);
+imgvstime_K2.time = smooth(imgvstime_K2.time);
 
 curr_dir = strcat(base_dir, 'KITTI05/');
 [PR_K5, imgvssize_K5, imgvstime_K5] = process(curr_dir, gt_neigh, compensate);
@@ -35,22 +23,30 @@ curr_dir = strcat(base_dir, 'KITTI06/');
 [PR_K6, imgvssize_K6, imgvstime_K6] = process(curr_dir, gt_neigh, compensate);
 imgvstime_K6.time = smooth(imgvstime_K6.time);
 
+curr_dir = strcat(base_dir, 'KITTI07/');
+[PR_K7, imgvssize_K7, imgvstime_K7] = process(curr_dir, gt_neigh, compensate);
+imgvstime_K7.time = smooth(imgvstime_K7.time);
+
+curr_dir = strcat(base_dir, 'KITTI08/');
+[PR_K8, imgvssize_K8, imgvstime_K8] = process(curr_dir, gt_neigh, compensate);
+imgvstime_K8.time = smooth(imgvstime_K8.time);
+
 % P/R curves
 afigure;
 hold on;
-plot(PR_CC.R, PR_CC.P, '-o', 'MarkerIndices', length(PR_CC.P));
-plot(PR_NC.R, PR_NC.P, '-*', 'MarkerIndices', length(PR_NC.P));
-plot(PR_L6I.R, PR_L6I.P, '-x', 'MarkerIndices', length(PR_L6I.P));
-plot(PR_L6O.R, PR_L6O.P, '--s', 'MarkerIndices', length(PR_L6O.P));
 plot(PR_K0.R, PR_K0.P, '-d', 'MarkerIndices', length(PR_K0.P));
-% plot(PR_K5.R, PR_K5.P, '--^', 'MarkerIndices', length(PR_K5.P));
+plot(PR_K2.R, PR_K2.P, '-o', 'MarkerIndices', length(PR_K2.P));
+plot(PR_K5.R, PR_K5.P, '--^', 'MarkerIndices', length(PR_K5.P));
 plot(PR_K6.R, PR_K6.P, '--p', 'MarkerIndices', length(PR_K6.P));
+plot(PR_K7.R, PR_K7.P, '-*', 'MarkerIndices', length(PR_K7.P));
+plot(PR_K8.R, PR_K8.P, '-x', 'MarkerIndices', length(PR_K8.P));
+
 xlabel('Recall');
 ylabel('Precision');
 xlim([0.7, 1.02]);
 ylim([0.4, 1.02]);
 % legend('CC', 'NC', 'L6I', 'L6O', 'K00', 'K05', 'K06', 'Location', 'SouthWest');
-legend('CC', 'NC', 'L6I', 'L6O', 'K00', 'K06', 'Location', 'SouthWest');
+legend('K00', 'K02', 'K05', 'K06', 'K07', 'K08');
 hold off;
 print('-depsc', strcat(base_dir, 'PR_curves'));
 
@@ -93,40 +89,19 @@ hold off;
 print('-depsc', strcat(base_dir, 'imgs_vs_time'));
 
 % Showing summaries
-disp('----- Summary CC -----');
-disp(['Max P: ', num2str(PR_CC.P_max)]);
-disp(['Max R: ', num2str(PR_CC.R_max)]);
-disp(['Max VWords: ', num2str(imgvssize_CC.size(end))]);
-disp(['Avg. Time: ', num2str(mean(imgvstime_CC.time))]);
-disp(['Std. Time: ', num2str(std(imgvstime_CC.time))]);
-
-disp('----- Summary NC -----');
-disp(['Max P: ', num2str(PR_NC.P_max)]);
-disp(['Max R: ', num2str(PR_NC.R_max)]);
-disp(['Max VWords: ', num2str(imgvssize_NC.size(end))]);
-disp(['Avg. Time: ', num2str(mean(imgvstime_NC.time))]);
-disp(['Std. Time: ', num2str(std(imgvstime_NC.time))]);
-
-disp('----- Summary L6I -----');
-disp(['Max P: ', num2str(PR_L6I.P_max)]);
-disp(['Max R: ', num2str(PR_L6I.R_max)]);
-disp(['Max VWords: ', num2str(imgvssize_L6I.size(end))]);
-disp(['Avg. Time: ', num2str(mean(imgvstime_L6I.time))]);
-disp(['Std. Time: ', num2str(std(imgvstime_L6I.time))]);
-
-disp('----- Summary L6O -----');
-disp(['Max P: ', num2str(PR_L6O.P_max)]);
-disp(['Max R: ', num2str(PR_L6O.R_max)]);
-disp(['Max VWords: ', num2str(imgvssize_L6O.size(end))]);
-disp(['Avg. Time: ', num2str(mean(imgvstime_L6O.time))]);
-disp(['Std. Time: ', num2str(std(imgvstime_L6O.time))]);
-
 disp('----- Summary KITTI 00 -----');
 disp(['Max P: ', num2str(PR_K0.P_max)]);
 disp(['Max R: ', num2str(PR_K0.R_max)]);
 disp(['Max VWords: ', num2str(imgvssize_K0.size(end))]);
 disp(['Avg. Time: ', num2str(mean(imgvstime_K0.time))]);
 disp(['Std. Time: ', num2str(std(imgvstime_K0.time))]);
+
+disp('----- Summary KITTI 02 -----');
+disp(['Max P: ', num2str(PR_K2.P_max)]);
+disp(['Max R: ', num2str(PR_K2.R_max)]);
+disp(['Max VWords: ', num2str(imgvssize_K2.size(end))]);
+disp(['Avg. Time: ', num2str(mean(imgvstime_K2.time))]);
+disp(['Std. Time: ', num2str(std(imgvstime_K2.time))]);
 
 disp('----- Summary KITTI 05 -----');
 disp(['Max P: ', num2str(PR_K5.P_max)]);
@@ -141,5 +116,19 @@ disp(['Max R: ', num2str(PR_K6.R_max)]);
 disp(['Max VWords: ', num2str(imgvssize_K6.size(end))]);
 disp(['Avg. Time: ', num2str(mean(imgvstime_K6.time))]);
 disp(['Std. Time: ', num2str(std(imgvstime_K6.time))]);
+
+disp('----- Summary KITTI 07 -----');
+disp(['Max P: ', num2str(PR_K7.P_max)]);
+disp(['Max R: ', num2str(PR_K7.R_max)]);
+disp(['Max VWords: ', num2str(imgvssize_K7.size(end))]);
+disp(['Avg. Time: ', num2str(mean(imgvstime_K7.time))]);
+disp(['Std. Time: ', num2str(std(imgvstime_K7.time))]);
+
+disp('----- Summary KITTI 08 -----');
+disp(['Max P: ', num2str(PR_K8.P_max)]);
+disp(['Max R: ', num2str(PR_K8.R_max)]);
+disp(['Max VWords: ', num2str(imgvssize_K8.size(end))]);
+disp(['Avg. Time: ', num2str(mean(imgvstime_K8.time))]);
+disp(['Std. Time: ', num2str(std(imgvstime_K8.time))]);
 
 close all;

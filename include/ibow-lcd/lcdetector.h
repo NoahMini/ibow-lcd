@@ -44,7 +44,7 @@ struct LCDetectorParams {
     merge_policy(obindex2::MERGE_POLICY_NONE),
     purge_descriptors(true),
     min_feat_apps(2),
-    p(1300), // originally 250
+    p(800), // originally 250
     nndr(0.8f),
     nndr_bf(0.8f),
     ep_dist(2.0),
@@ -114,7 +114,10 @@ class LCDetector {
                const std::vector<cv::Point3f>& kps,
                const cv::Mat& descs,
                const std::string pcds_dir,
-               std::pair<int, double>& result);
+               std::pair<int, double>& result,
+               int prev_match,
+               std::ofstream& out_file,
+               std::ofstream& match_file);
   void debug(const unsigned image_id,
              const std::vector<cv::Point3f>& kps,
              const cv::Mat& descs,
