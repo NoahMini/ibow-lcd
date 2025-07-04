@@ -57,6 +57,15 @@ struct Island {
     return (b1 <= a1 && a1 <= b2) || (a1 <= b1 && b1 <= a2);
   }
 
+  bool exclusive_overlaps(const Island& island) const {
+    unsigned a1 = min_img_id;
+    unsigned a2 = max_img_id;
+    unsigned b1 = island.min_img_id;
+    unsigned b2 = island.max_img_id;
+
+    return (b1 < a1 && a1 < b2) || (a1 < b1 && b1 < a2);
+  }
+
   void adjustLimits(const unsigned image_id, unsigned* min, unsigned* max) {
     // If the image is to the right of the island
     if (image_id > max_img_id) {

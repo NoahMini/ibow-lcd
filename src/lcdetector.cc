@@ -55,7 +55,6 @@ LCDetector::~LCDetector() {}
 void LCDetector::process(const unsigned image_id,
                          const std::vector<cv::Point3f>& kps,
                          const cv::Mat& descs,
-                         const std::string pcds_dir,
                          std::pair<int, double> &loop_result,
                          int prev_match,
                          std::ofstream& out_file,
@@ -64,13 +63,13 @@ void LCDetector::process(const unsigned image_id,
   //FIGURE OUT LOOP_RESULT
   std::cout << std::endl << "----- Image " << image_id << std::endl;
   out_file << "\n----- Image " << image_id << "\n";
+
   // Storing the keypoints and descriptors
   prev_kps_.push_back(kps);
   prev_descs_.push_back(descs);
 
   // Adding the current image to the queue to be added in the future
   queue_ids_.push(image_id);
-  //std::cout << "Queue ids size: " << queue_ids_.size() << std::endl;
 
   // Assessing if, at least, p images have arrived
   if (queue_ids_.size() < p_) {
@@ -106,14 +105,14 @@ void LCDetector::process(const unsigned image_id,
     match_file << "\n\n----- Image " << image_id << "\n";
     match_file << "  Descriptor Matches:\n";
     for(auto i = 0 ; i < matches_feats.size() ; i++){
-    match_file << "Query desc id: " << matches_feats[i][0].queryIdx << "\n";
-    for (auto j = 0 ; j < matches_feats[i].size() ; j++){
-      match_file << "    trainIdx: " << matches_feats[i][j].trainIdx << "\n";
-      match_file << "    imgIdx: " << matches_feats[i][j].imgIdx << "\n";
-      match_file << "    distance: " << matches_feats[i][j].distance << "\n";
-      match_file << "------------------------------------------\n";
+      match_file << "Query desc id: " << matches_feats[i][0].queryIdx << "\n";
+      for (auto j = 0 ; j < matches_feats[i].size() ; j++){
+        match_file << "    trainIdx: " << matches_feats[i][j].trainIdx << "\n";
+        match_file << "    imgIdx: " << matches_feats[i][j].imgIdx << "\n";
+        match_file << "    distance: " << matches_feats[i][j].distance << "\n";
+        match_file << "------------------------------------------\n";
+      }
     }
-  }
   }
   
 
@@ -148,13 +147,13 @@ void LCDetector::process(const unsigned image_id,
 
   if(prev_match > 0 && image_matches_filt.size()){
     obindex2::ImageMatch prev_match_up;
-    //obindex2::ImageMatch prev_match_down;
+    // obindex2::ImageMatch prev_match_down;
     prev_match_up.image_id = prev_match + 1;
-    //prev_match_down.image_id = prev_match - 1;
+    // prev_match_down.image_id = prev_match - 1;
     prev_match_up.score = image_matches_filt[0].score*0.8;
-    //prev_match_down.score = image_matches_filt[0].score*0.8;
+    // prev_match_down.score = image_matches_filt[0].score*0.4;
     image_matches_filt.insert(image_matches_filt.begin(), prev_match_up);
-    //image_matches_filt.insert(image_matches_filt.begin(), prev_match_down);
+    // image_matches_filt.insert(image_matches_filt.begin(), prev_match_down);
     //consider adding both the +1 and -1
   }
 
@@ -184,6 +183,9 @@ void LCDetector::process(const unsigned image_id,
   if (!islands.size()) {
     // No resulting islands
     // result->status = LC_NOT_ENOUGH_ISLANDS;
+    Island reset_island(-1, 0.0, -1, -1);
+    consecutive_loops_ = 0;
+    last_lc_island_ = reset_island;
     loop_result.first = -1;
     loop_result.second = 0;
     // last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
@@ -216,7 +218,7 @@ void LCDetector::process(const unsigned image_id,
     out_file << "Priority island: " << p_islands[0].toString() << "\n";
   }
 
-  bool overlap = island.overlaps(last_lc_island_);
+  bool overlap = island.exclusive_overlaps(last_lc_island_);
   last_lc_island_ = island;
 
   unsigned best_img = island.img_id;
@@ -247,9 +249,11 @@ void LCDetector::process(const unsigned image_id,
 }
 
 void LCDetector::debug(const unsigned image_id,
-             const std::vector<cv::Point3f>& kps,
-             const cv::Mat& descs,
-             std::ofstream& out_file) {
+                       const std::vector<cv::Point3f>& kps,
+                       const cv::Mat& descs,
+                       std::pair<int, double> &loop_result,
+                       int prev_match,
+                       std::ofstream& out_file) {
   auto start = std::chrono::steady_clock::now();
   // Storing the keypoints and descriptors
   prev_kps_.push_back(kps);
@@ -266,10 +270,12 @@ void LCDetector::debug(const unsigned image_id,
     out_file << 0 << "\t";  // max_id
     out_file << 0 << "\t";  // img_id
     out_file << 0 << "\t";  // overlap
-    out_file << 0 << "\t";  // Inliers
-    out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
+    out_file << index_->numDescriptors() << "\t";  // Voc. Size
+    out_file << 0 << "\t";  // Inliers
     out_file << std::endl;
+    loop_result.first = -1;
+    loop_result.second = 0;
     return;
   }
 
@@ -299,6 +305,13 @@ void LCDetector::debug(const unsigned image_id,
   std::vector<obindex2::ImageMatch> image_matches_filt;
   filterCandidates(image_matches, &image_matches_filt);
 
+  if(prev_match > 0 && image_matches_filt.size()){
+    obindex2::ImageMatch prev_match_up;
+    prev_match_up.image_id = prev_match + 1;
+    prev_match_up.score = image_matches_filt[0].score*0.8;
+    image_matches_filt.insert(image_matches_filt.begin(), prev_match_up);
+  }
+
   std::vector<Island> islands;
   buildIslands(image_matches_filt, &islands);
 
@@ -310,10 +323,15 @@ void LCDetector::debug(const unsigned image_id,
     out_file << 0 << "\t";  // max_id
     out_file << 0 << "\t";  // img_id
     out_file << 0 << "\t";  // overlap
-    out_file << 0 << "\t";  // Inliers
-    out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
+    out_file << index_->numDescriptors() << "\t";  // Voc. Size
+    out_file << 0 << "\t";  // Inliers
     out_file << std::endl;
+    Island reset_island(-1, 0.0, -1, -1);
+    consecutive_loops_ = 0;
+    last_lc_island_ = reset_island;
+    loop_result.first = -1;
+    loop_result.second = 0;
     return;
   }
 
@@ -330,18 +348,10 @@ void LCDetector::debug(const unsigned image_id,
     island = p_islands[0];
   }
 
-  bool overlap = island.overlaps(last_lc_island_);
+  bool overlap = island.exclusive_overlaps(last_lc_island_);
   last_lc_island_ = island;
 
   unsigned best_img = island.img_id;
-
-  // We obtain the image matchings, since we need them for compute F
-  std::vector<cv::DMatch> tmatches;
-  std::vector<cv::Point3f> tquery;
-  std::vector<cv::Point3f> ttrain;
-  ratioMatchingBF(descs, prev_descs_[best_img], &tmatches);
-  convertPoints(kps, prev_kps_[best_img], tmatches, &tquery, &ttrain);
-  unsigned inliers = checkEpipolarGeometry(tquery, ttrain);
 
   auto end = std::chrono::steady_clock::now();
   auto diff = end - start;
@@ -351,10 +361,21 @@ void LCDetector::debug(const unsigned image_id,
   out_file << island.max_img_id << "\t";          // max_id
   out_file << best_img << "\t";                   // img_id
   out_file << overlap << "\t";                    // overlap
-  out_file << inliers << "\t";                    // Inliers
-  out_file << index_->numDescriptors() << "\t";   // Voc. Size
   out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
-  out_file << std::endl;
+  out_file << index_->numDescriptors() << "\t";   // Voc. Size
+  // inliers are saved in prueba.cpp
+
+  // Assessing the loop
+  if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
+    // LOOP can be considered as detected
+    loop_result.first = best_img;
+    loop_result.second = 0;
+    consecutive_loops_++;
+  } else {
+    // LOOP not detected 
+    loop_result.first = best_img;
+    loop_result.second = 1;
+  }
 }
 
 void LCDetector::addImage(const unsigned image_id,
@@ -474,7 +495,7 @@ void LCDetector::getPriorIslands(
   // We search for overlapping islands
   for (unsigned i = 0; i < islands.size(); i++) {
     Island tisl = islands[i];
-    if (island.overlaps(tisl)) {
+    if (island.exclusive_overlaps(tisl)) {
       p_islands->push_back(tisl);
     }
   }
