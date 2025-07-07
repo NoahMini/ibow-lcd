@@ -253,6 +253,8 @@ void LCDetector::debug(const unsigned image_id,
                        const cv::Mat& descs,
                        std::pair<int, double> &loop_result,
                        int prev_match,
+                       std::ofstream& process_file,
+                       std::ofstream& match_file,
                        std::ofstream& out_file) {
   auto start = std::chrono::steady_clock::now();
   // Storing the keypoints and descriptors
