@@ -275,7 +275,8 @@ void LCDetector::debug(const unsigned image_id,
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
     out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << 0 << "\t";  // Inliers
-    out_file << std::endl;
+    // out_file << 0 << "\t";  // cloud_overlap
+    // out_file << std::endl;
     loop_result.first = -1;
     loop_result.second = 0;
     return;
@@ -328,7 +329,8 @@ void LCDetector::debug(const unsigned image_id,
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
     out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << 0 << "\t";  // Inliers
-    out_file << std::endl;
+    // out_file << 0 << "\t";              //cloud_overlap
+    // out_file << std::endl;
     Island reset_island(-1, 0.0, -1, -1);
     consecutive_loops_ = 0;
     last_lc_island_ = reset_island;
