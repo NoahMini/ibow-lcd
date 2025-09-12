@@ -73,10 +73,8 @@ void LCDetector::process(const unsigned image_id,
 
   // Assessing if, at least, p images have arrived
   if (queue_ids_.size() < p_) {
-    // result->status = LC_NOT_ENOUGH_IMAGES;
     loop_result.first = -1;
     loop_result.second = 0;
-    // last_lc_result_.status = LC_NOT_ENOUGH_IMAGES;
     std::cout << "No loop: Not enough images" << std::endl;
     out_file << "No loop: Not enough images\n";
     return;
@@ -85,20 +83,14 @@ void LCDetector::process(const unsigned image_id,
   // Adding new hypothesis
   unsigned newimg_id = queue_ids_.front();
   queue_ids_.pop();
-  // auto t_load_start = std::chrono::high_resolution_clock::now();
   
   addImage(newimg_id, prev_kps_[newimg_id], prev_descs_[newimg_id]);
-
-  // auto t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] AddImage: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Searching similar images in the index
   // Matching the descriptors agains the current visual words
   std::vector<std::vector<cv::DMatch> > matches_feats;
 
-  // Searching the query descriptors against the features
-  // t_load_start = std::chrono::high_resolution_clock::now();
-  
+  // Searching the query descriptors against the features  
   index_->searchDescriptors(descs, &matches_feats, 2, 64);
 
   if(matches_feats.size()){
@@ -115,46 +107,29 @@ void LCDetector::process(const unsigned image_id,
     }
   }
   
-
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] SearchDescriptors: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   // Filtering matches according to the ratio test
   std::vector<cv::DMatch> matches;
-  // t_load_start = std::chrono::high_resolution_clock::now();
   
   filterMatches(matches_feats, &matches);
 
   out_file << "Filtered desc matches: " << matches.size() << "\n";
 
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] FilterMatches: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
-
   std::vector<obindex2::ImageMatch> image_matches;
 
   // We look for similar images according to the filtered matches found
-  // t_load_start = std::chrono::high_resolution_clock::now();
-  
   index_->searchImages(descs, matches, &image_matches, true);
-
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] SearchImages: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
 
   // Filtering the resulting image matchings
   std::vector<obindex2::ImageMatch> image_matches_filt;
-  // t_load_start = std::chrono::high_resolution_clock::now();
   
   filterCandidates(image_matches, &image_matches_filt);
 
+  // Add last match +1 as a priority image
   if(prev_match > 0 && image_matches_filt.size()){
     obindex2::ImageMatch prev_match_up;
-    // obindex2::ImageMatch prev_match_down;
     prev_match_up.image_id = prev_match + 1;
-    // prev_match_down.image_id = prev_match - 1;
     prev_match_up.score = image_matches_filt[0].score*0.8;
-    // prev_match_down.score = image_matches_filt[0].score*0.4;
     image_matches_filt.insert(image_matches_filt.begin(), prev_match_up);
-    // image_matches_filt.insert(image_matches_filt.begin(), prev_match_down);
-    //consider adding both the +1 and -1
   }
 
   if(image_matches_filt.size()){
@@ -165,30 +140,20 @@ void LCDetector::process(const unsigned image_id,
     }
   }
 
-
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] FilterCandidates: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
-
   std::vector<Island> islands;
 
-  // t_load_start = std::chrono::high_resolution_clock::now();
-  
-  buildIslands(image_matches_filt, &islands);                                       //CHECK MORE THAN JUST THE FIRST ISLAND
+  buildIslands(image_matches_filt, &islands);
 
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] BuildIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   std::cout << "Number of islands: " << islands.size() << std::endl;
   out_file << "Number of islands: " << islands.size() << "\n";
 
   if (!islands.size()) {
     // No resulting islands
-    // result->status = LC_NOT_ENOUGH_ISLANDS;
     Island reset_island(-1, 0.0, -1, -1);
     consecutive_loops_ = 0;
     last_lc_island_ = reset_island;
     loop_result.first = -1;
     loop_result.second = 0;
-    // last_lc_result_.status = LC_NOT_ENOUGH_ISLANDS;
     std::cout << "No loop: Not enough islands" << std::endl;
     out_file << "No loop: Not enough islands" << "\n";
     return;
@@ -204,13 +169,8 @@ void LCDetector::process(const unsigned image_id,
   // Selecting the corresponding island to be processed
   Island island = islands[0];
   std::vector<Island> p_islands;
-  // t_load_start = std::chrono::high_resolution_clock::now();
   
   getPriorIslands(last_lc_island_, islands, &p_islands);
-  
-
-  // t_load_end = std::chrono::high_resolution_clock::now();
-  // std::cout << "[Time] GetPriorIslands: " << std::chrono::duration_cast<std::chrono::microseconds>(t_load_end - t_load_start).count() << "ms, " << std::endl;
   
   if (p_islands.size()) {
     island = p_islands[0];
@@ -231,11 +191,8 @@ void LCDetector::process(const unsigned image_id,
   // Assessing the loop
   if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
     // LOOP can be considered as detected
-    // result->status = LC_DETECTED;
     loop_result.first = best_img;
     loop_result.second = 0;
-    // Store the last result
-    // last_lc_result_ = *result;
     std::cout << " Loop detected: Overlap + Enough consecutive loops" << std::endl;
     out_file << " Loop detected: Overlap + Enough consecutive loops" << "\n";
     consecutive_loops_++;
@@ -275,8 +232,6 @@ void LCDetector::debug(const unsigned image_id,
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
     out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << 0 << "\t";  // Inliers
-    // out_file << 0 << "\t";  // cloud_overlap
-    // out_file << std::endl;
     loop_result.first = -1;
     loop_result.second = 0;
     return;
@@ -329,8 +284,6 @@ void LCDetector::debug(const unsigned image_id,
     out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
     out_file << index_->numDescriptors() << "\t";  // Voc. Size
     out_file << 0 << "\t";  // Inliers
-    // out_file << 0 << "\t";              //cloud_overlap
-    // out_file << std::endl;
     Island reset_island(-1, 0.0, -1, -1);
     consecutive_loops_ = 0;
     last_lc_island_ = reset_island;
@@ -338,11 +291,6 @@ void LCDetector::debug(const unsigned image_id,
     loop_result.second = 0;
     return;
   }
-
-  // std::cout << "Resulting Islands:" << std::endl;
-  // for (unsigned i = 0; i < islands.size(); i++) {
-  //   std::cout << islands[i].toString();
-  // }
 
   // Selecting the corresponding island to be processed
   Island island = islands[0];
@@ -367,7 +315,7 @@ void LCDetector::debug(const unsigned image_id,
   out_file << overlap << "\t";                    // overlap
   out_file << std::chrono::duration<double, std::milli>(diff).count() << "\t";  // Time
   out_file << index_->numDescriptors() << "\t";   // Voc. Size
-  // inliers are saved in prueba.cpp
+  // inliers are saved in main script
 
   // Assessing the loop
   if (consecutive_loops_ > min_consecutive_loops_ && overlap) {
